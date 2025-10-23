@@ -4,7 +4,7 @@
 
 // Configuration
 // ⬇️ WAJIB GANTI URL INI ⬇️ (Ganti dengan URL ngrok dari output Colab Anda)
-const API_URL = 'https://URL_NGROK_ANDA.ngrok.io/api/traffic';
+const API_URL = 'https://70838e8534c2.ngrok-free.app';
 
 // --- Initialize Libraries & Elements ---
 const map = L.map('map', { zoomControl: true }).setView([-6.595, 106.797], 14);
@@ -177,3 +177,4 @@ document.addEventListener('DOMContentLoaded', () => {
     fetchAndUpdate(); // Initial call
     setInterval(fetchAndUpdate, 5000); // Refresh data every 5 seconds
 });
+
