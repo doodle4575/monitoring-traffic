@@ -97,7 +97,7 @@ function openModal(cctv) {
     const streamViewer = document.getElementById('cctvStreamViewer');
     
     // ⬇️ WAJIB GANTI URL INI ⬇️ (Ganti dengan URL ngrok dari output Colab Anda)
-    streamViewer.src = `https://URL_NGROK_ANDA.ngrok.io/video_feed/${cctv.id}`;
+    streamViewer.src = `https://70838e8534c2.ngrok-free.app${cctv.id}`;
     
     cctvModal.show();
 }
@@ -177,4 +177,5 @@ document.addEventListener('DOMContentLoaded', () => {
     fetchAndUpdate(); // Initial call
     setInterval(fetchAndUpdate, 5000); // Refresh data every 5 seconds
 });
+
 
