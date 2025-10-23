@@ -4,7 +4,7 @@
 
 // Configuration
 // ⬇️ WAJIB GANTI URL INI ⬇️ (Ganti dengan URL ngrok dari output Colab Anda)
-const API_URL = 'https://70838e8534c2.ngrok-free.app/api/traffic';
+const API_URL = 'https://1ce9deb6f635.ngrok-free.app/api/traffic';
 
 // --- Initialize Libraries & Elements ---
 const map = L.map('map', { zoomControl: true }).setView([-6.595, 106.797], 14);
@@ -97,7 +97,7 @@ function openModal(cctv) {
     const streamViewer = document.getElementById('cctvStreamViewer');
     
     // ⬇️ WAJIB GANTI URL INI ⬇️ (Ganti dengan URL ngrok dari output Colab Anda)
-    streamViewer.src = `https://70838e8534c2.ngrok-free.app/video_feed/${cctv.id}`;
+    streamViewer.src = `https://1ce9deb6f635.ngrok-free.app//video_feed/${cctv.id}`;
     
     cctvModal.show();
 }
@@ -177,3 +177,4 @@ document.addEventListener('DOMContentLoaded', () => {
     fetchAndUpdate(); // Initial call
     setInterval(fetchAndUpdate, 5000); // Refresh data every 5 seconds
 });
+
