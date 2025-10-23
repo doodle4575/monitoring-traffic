@@ -1,0 +1,41 @@
+html, body, #app {
+    height: 100%;
+}
+body {
+    background: #f7f9fc;
+}
+#map {
+    height: calc(100vh - 24px);
+    border-radius: 8px;
+}
+.card {
+    border-radius: 12px;
+    border: none;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+}
+.traffic-table {
+    max-height: 38vh;
+    overflow: auto;
+}
+.link-select {
+    cursor: pointer;
+}
+
+/* Responsive Layout */
+@media(min-width: 992px) {
+    .col-left { width: 48%; float: left; }
+    .col-right { width: 52%; float: right; }
+}
+@media(max-width: 991px) {
+    .col-left, .col-right { width: 100%; float: none; margin-bottom: 1rem; }
+    #map { height: 380px; }
+}
+
+/* Video Modal Styling */
+.modal-xl {
+    max-width: 900px;
+}
+#cctvStreamViewer { /* Changed from #cctvVideoPlayer */
+    display: block;
+    background-color: #000;
+}
