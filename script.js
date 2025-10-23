@@ -1,5 +1,10 @@
+// ==========================================================
+// FULL SCRIPT UNTUK FILE 'script.js'
+// ==========================================================
+
 // Configuration
-const API_URL = 'http://127.0.0.1:5000/api/traffic';
+// ⬇️ WAJIB GANTI URL INI ⬇️ (Ganti dengan URL ngrok dari output Colab Anda)
+const API_URL = 'https://URL_NGROK_ANDA.ngrok.io/api/traffic';
 
 // --- Initialize Libraries & Elements ---
 const map = L.map('map', { zoomControl: true }).setView([-6.595, 106.797], 14);
@@ -13,7 +18,7 @@ const volumeChart = new Chart(volumeCtx, {
     options: {
         responsive: true,
         plugins: { legend: { display: false } },
-        scales: { y: { beginAtZero: true, max: 150 } }
+        scales: { y: { beginAtZero: true, max: 150 } } // Atur max Y-axis jika perlu
     }
 });
 
@@ -29,65 +34,87 @@ function volumeColor(count) {
     return '#28a745';                   // Smooth
 }
 
-/**
- * Menampilkan pop-up modal dengan stream video yang telah diproses YOLO.
- * @param {object} point - Objek data lokasi dari API.
- */
-function showCctvPopup(point) {
-    modalTitle.textContent = `Live Stream (Deteksi Aktif) - ${point.name}`;
-    
-    // Ambil elemen <img> yang sudah kita ubah di index.html
-    const streamViewer = document.getElementById('cctvStreamViewer');
-    
-    // Bangun URL ke endpoint video stream di backend Flask Anda
-    const processedStreamUrl = `http://127.0.0.1:5000/video_feed/${point.id}`;
-    
-    // Atur sumber gambar ke stream yang diproses
-    streamViewer.src = processedStreamUrl;
-    
-    cctvModal.show();
+function statusLabel(status) {
+    if (status === "Padat") return '<span class="badge text-bg-danger">Padat</span>';
+    if (status === "Ramai") return '<span class="badge text-bg-warning">Ramai</span>';
+    if (status === "Lancar") return '<span class="badge text-bg-success">Lancar</span>';
+    return `<span class="badge text-bg-secondary">${status}</span>`;
 }
 
-// --- Core Application Logic ---
-/**
- * Renders data points to the map and table.
- * @param {Array} points - Array of location data from the API.
- */
+function getMarkerIcon(count) {
+    const iconHtml = `
+    <div class="marker-container">
+      <div class="marker-pin" style="background-color: ${volumeColor(count)};"></div>
+      <div class="marker-count">${count}</div>
+    </div>`;
+    return L.divIcon({
+        html: iconHtml,
+        className: 'custom-div-icon', // Pastikan class ini ada di CSS jika Anda menambahkannya
+        iconSize: [30, 42],
+        iconAnchor: [15, 42],
+        popupAnchor: [0, -42]
+    });
+}
+
+// --- UI Rendering Functions ---
 function renderPoints(points) {
-    markers.clearLayers();
-    const tbody = document.getElementById('pointsTableBody');
-    tbody.innerHTML = '';
+    const tableBody = document.getElementById('pointsTableBody');
+    tableBody.innerHTML = ''; // Clear existing table
+    markers.clearLayers();    // Clear existing markers
 
     points.forEach(p => {
-        const color = volumeColor(p.vehicle_count);
+        // 1. Add Marker to Map
+        const marker = L.marker([p.lat, p.lng], { icon: getMarkerIcon(p.vehicle_count) })
+            .addTo(markers)
+            .bindPopup(`<b>${p.name}</b><br>${p.vehicle_count} Kendaraan (${p.status})`);
         
-        // Add marker to map with a click event for the video pop-up
-        const marker = L.circleMarker([p.lat, p.lng], {
-            radius: 10, fillOpacity: 0.9, color: '#000', weight: 1, fillColor: color
-        }).addTo(markers).on('click', () => showCctvPopup(p));
-        
-        marker.bindTooltip(`<strong>${p.name}</strong><br/>Klik untuk melihat live stream`);
-        
-        // Add row to table with a click event for the video pop-up
-        const tr = document.createElement('tr');
-        tr.innerHTML = `<td><a href="#" class="link-select">${p.name}</a></td><td>${p.status}</td><td>${p.vehicle_count}</td>`;
-        tbody.appendChild(tr);
+        // Add click event to marker
+        marker.on('click', () => openModal(p));
 
-        tr.querySelector('.link-select').addEventListener('click', (e) => {
-            e.preventDefault();
-            showCctvPopup(p);
+        // 2. Add Row to Table
+        const row = document.createElement('tr');
+        row.className = 'link-select';
+        row.innerHTML = `
+            <td>${p.name}</td>
+            <td>${statusLabel(p.status)}</td>
+            <td><b>${p.vehicle_count}</b></td>
+        `;
+        // Add click event to table row
+        row.addEventListener('click', () => {
+            openModal(p);
+            map.flyTo([p.lat, p.lng], 16); // Zoom to point
         });
+        tableBody.appendChild(row);
     });
 }
 
 /**
- * Updates the line chart with new vehicle volume data.
- * @param {Array} points - Array of location data from the API.
+ * Opens the CCTV modal and starts the stream.
+ * @param {object} cctv - The CCTV data object
+ */
+function openModal(cctv) {
+    modalTitle.textContent = `Live Stream - ${cctv.name}`;
+    const streamViewer = document.getElementById('cctvStreamViewer');
+    
+    // ⬇️ WAJIB GANTI URL INI ⬇️ (Ganti dengan URL ngrok dari output Colab Anda)
+    streamViewer.src = `https://URL_NGROK_ANDA.ngrok.io/video_feed/${cctv.id}`;
+    
+    cctvModal.show();
+}
+
+/**
+ * Updates the line chart with new data.
+ * @param {Array} points - Array of traffic data points
  */
 function updateVolumeChart(points) {
-    const timestamp = new Date().toLocaleTimeString('id-ID');
-    if (volumeChart.data.labels.length > 15) volumeChart.data.labels.shift();
-    volumeChart.data.labels.push(timestamp);
+    // Add current time as label
+    const now = new Date();
+    const timeLabel = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}`;
+    
+    if (volumeChart.data.labels.length > 15) {
+        volumeChart.data.labels.shift();
+    }
+    volumeChart.data.labels.push(timeLabel);
 
     points.forEach(p => {
         let dataset = volumeChart.data.datasets.find(ds => ds.label === p.name);
@@ -95,9 +122,8 @@ function updateVolumeChart(points) {
             dataset = {
                 label: p.name,
                 data: [],
-                borderColor: volumeColor(p.vehicle_count),
-                tension: 0.3,
-                fill: false
+                fill: false,
+                tension: 0.1
             };
             volumeChart.data.datasets.push(dataset);
         }
@@ -120,12 +146,16 @@ async function fetchAndUpdate() {
         const data = await response.json();
         const points = data.points; // Langsung gunakan data dari backend
 
-        if (points.length > 0) {
+        if (points && points.length > 0) {
             renderPoints(points);
             updateVolumeChart(points);
+        } else {
+            console.warn("Tidak ada data 'points' yang diterima dari API.");
         }
     } catch (error) {
         console.error("Gagal mengambil data dari backend:", error);
+        // Tampilkan error di UI jika perlu, misal:
+        // document.getElementById('pointsTableBody').innerHTML = '<tr><td colspan="3" class="text-danger text-center">Gagal terhubung ke server backend.</td></tr>';
     }
 }
 
@@ -137,9 +167,13 @@ cctvModalElement.addEventListener('hidden.bs.modal', () => {
     streamViewer.src = ""; 
 });
 
+// Menambahkan fungsi ke tombol refresh
+document.getElementById('refreshBtn').addEventListener('click', () => {
+    fetchAndUpdate();
+});
+
 // Start the application
 document.addEventListener('DOMContentLoaded', () => {
     fetchAndUpdate(); // Initial call
-    setInterval(fetchAndUpdate, 5000); // Auto-refresh every 5 seconds
-    document.getElementById('refreshBtn').addEventListener('click', fetchAndUpdate);
+    setInterval(fetchAndUpdate, 5000); // Refresh data every 5 seconds
 });
