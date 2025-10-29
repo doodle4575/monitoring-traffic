@@ -1,79 +1,692 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="id">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Monitoring Kepadatan Lalu Lintas</title>
-  
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  
-  <link rel="stylesheet" href="style.css" />
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Monitoring Kepadatan Lalu Lintas - Dashboard Real-time</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+     integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+     crossorigin=""/>
+    
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+     integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+     crossorigin=""></script>
+
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background-color: #f5f5f5;
+        }
+        
+        .animate-pulse {
+            animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% {
+                opacity: 1;
+            }
+            50% {
+                opacity: .5;
+            }
+        }
+        
+        .card {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+        
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 4px 12px;
+            border-radius: 9999px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+        
+        .camera-card {
+            transition: transform 0.2s;
+            cursor: pointer;
+        }
+        
+        .camera-card:hover {
+            transform: translateY(-4px);
+        }
+        
+        /* CSS untuk marker Leaflet (sebelumnya .map-marker) */
+        .custom-leaflet-icon {
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .custom-leaflet-icon:hover {
+            transform: scale(1.2);
+        }
+
+        .legend-item {
+            transition: background-color 0.2s;
+            cursor: pointer;
+        }
+
+        .legend-item:hover {
+            background-color: #f5f5f5;
+        }
+
+        select {
+            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+            background-position: right 0.5rem center;
+            background-repeat: no-repeat;
+            background-size: 1.5em 1.5em;
+            padding-right: 2.5rem;
+        }
+    </style>
 </head>
-<body>
-  <div id="app" class="container-fluid p-3">
-    <header class="d-flex align-items-center mb-3">
-      <h3 class="me-auto">Dashboard Monitoring Lalu Lintas</h3>
-      <div>
-        <button id="refreshBtn" class="btn btn-outline-primary btn-sm">Refresh</button>
-      </div>
+<body class="bg-gray-50">
+    <header style="background-color: #0A2647;" class="text-white shadow-lg">
+        <div class="container mx-auto px-4 py-6">
+            <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                <div>
+                    <h1 class="text-3xl font-bold mb-2">Monitoring Kepadatan Lalu Lintas</h1>
+                    <p class="opacity-80">Dashboard Real-time (Deteksi YOLO)</p>
+                </div>
+                <div class="flex items-center gap-3">
+                    <select id="regionFilter" class="px-4 py-2 rounded-lg border-2 text-gray-700 outline-none focus:ring-2" style="border-color: #3B7A8E; focus:ring-color: #3B7A8E;">
+                        <option value="all">Semua Wilayah</option>
+                        </select>
+                    <button onclick="refreshData()" class="px-4 py-2 bg-white text-gray-700 rounded-lg hover:bg-gray-100 transition-colors flex items-center gap-2">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                        </svg>
+                        Refresh
+                    </button>
+                </div>
+            </div>
+            <div class="mt-4 flex items-center gap-2 text-sm">
+                <div class="flex items-center gap-1">
+                    <span class="inline-block w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
+                    <span>Status: Aktif</span>
+                </div>
+                <span class="opacity-50">•</span>
+                <span id="lastUpdate">Terakhir diperbarui: --:--:--</span>
+            </div>
+        </div>
     </header>
 
-    <div class="row gx-3">
-      <div class="col-left card p-3">
-        <div class="mb-3">
-          <h6>Grafik Volume Kendaraan (Live)</h6>
-          <canvas id="volumeChart" height="180"></canvas>
-        </div>
-
-        <div class="card p-2">
-          <div class="d-flex justify-content-between align-items-center mb-2">
-            <h6 class="mb-0">Tabel Lokasi CCTV</h6>
-            <div class="form-check form-switch">
-              <input class="form-check-input" type="checkbox" id="autoPanToggle" checked>
-              <label class="form-check-label small" for="autoPanToggle">Auto-pan Peta</label>
+    <main class="container mx-auto px-4 py-8">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+            <div class="card p-6">
+                <div class="flex items-start justify-between">
+                    <div class="flex-1">
+                        <p class="text-gray-600 text-sm mb-2">Total Kendaraan</p>
+                        <p class="text-3xl font-bold" style="color: #0A2647;" id="totalVehicles">0</p>
+                    </div>
+                    <div class="p-3 rounded-lg" style="background-color: rgba(10, 38, 71, 0.1);">
+                        <svg class="w-6 h-6" style="color: #0A2647;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19V6l12-3v13M9 6L3 3v13l6 3m0-13l12-3m-12 3l6 3m6-3v13" />
+                        </svg>
+                    </div>
+                </div>
             </div>
-          </div>
 
-          <div class="traffic-table">
-            <table class="table table-sm table-hover">
-              <thead class="table-light">
-                <tr>
-                  <th>Nama Lokasi</th>
-                  <th>Status</th>
-                  <th>Volume</th>
-                </tr>
-              </thead>
-              <tbody id="pointsTableBody">
-                </tbody>
-            </table>
-          </div>
+            <div class="card p-6">
+                <div class="flex items-start justify-between">
+                    <div class="flex-1">
+                        <p class="text-gray-600 text-sm mb-2">Wilayah & Titik Pantau</p>
+                        <p class="text-3xl font-bold" style="color: #0A2647;" id="monitoringPoints">0</p>
+                        <p class="text-sm text-gray-800 font-medium mt-2 truncate" id="availableLocations">Memuat...</p>
+                    </div>
+                    <div class="p-3 rounded-lg" style="background-color: rgba(59, 122, 142, 0.1);">
+                        <svg class="w-6 h-6" style="color: #3B7A8E;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                        </svg>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card p-6">
+                <div class="flex items-start justify-between">
+                    <div class="flex-1">
+                        <p class="text-gray-600 text-sm mb-2">Titik Macet</p>
+                        <p class="text-3xl font-bold text-red-600" id="congestionPoints">0</p>
+                    </div>
+                    <div class="p-3 rounded-lg bg-red-50">
+                        <svg class="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                        </svg>
+                    </div>
+                </div>
+            </div>
         </div>
-      </div>
 
-      <div class="col-right card p-3">
-        <div id="map"></div>
-      </div>
+        <div class="card p-6 mb-6">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-xl font-bold" style="color: #0A2647;">Peta Sebaran Kepadatan</h3>
+                <div class="flex items-center gap-2 text-sm text-gray-600">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
+                    </svg>
+                    <span id="mapAreaLabel">Memuat area...</span>
+                </div>
+            </div>
+
+            <div id="trafficMap" class="bg-gray-100 rounded-lg overflow-hidden mb-4" style="min-height: 400px; width: 100%; z-index: 10;">
+                </div>
+            
+            <div>
+                <h4 class="text-sm text-gray-600 mb-3">Lokasi Pemantauan:</h4>
+                <div id="locationLegend" class="grid grid-cols-2 md:grid-cols-3 gap-3"></div>
+            </div>
+        </div>
+
+        <div class="card p-6 mb-6">
+            <h3 class="text-xl font-bold mb-4" style="color: #0A2647;">Tren Kepadatan (Live)</h3>
+            <div style="position: relative; height: 300px;">
+                <canvas id="trafficChart"></canvas>
+            </div>
+        </div>
+
+        <div class="mb-6">
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="text-xl font-bold" style="color: #0A2647;">Pemantauan Kamera</h2>
+                <div class="flex items-center gap-2 text-sm text-gray-600">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <span id="cameraUpdateTime">Terakhir diperbarui: --:--:--</span>
+                </div>
+            </div>
+            <div id="cameraGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"></div>
+        </div>
+    </main>
+
+    <div id="cctvModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 hidden">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] flex flex-col">
+            <div class="flex items-center justify-between p-4 border-b">
+                <h3 id="cctvModalLabel" class="text-xl font-bold" style="color: #0A2647;">Live Stream CCTV</h3>
+                <button id="closeModalBtn" class="text-gray-400 hover:text-gray-600">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
+            </div>
+            <div class="p-0 bg-black overflow-hidden flex-1">
+                <img id="cctvStreamViewer" src="" alt="Live CCTV Stream" class="w-full h-full object-contain">
+            </div>
+        </div>
     </div>
-  </div>
 
-  <div class="modal fade" id="cctvModal" tabindex="-1" aria-labelledby="cctvModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-xl">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h5 class="modal-title" id="cctvModalLabel">Live Stream CCTV</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-        </div>
-        <div class="modal-body p-0 text-center">
-          <img id="cctvStreamViewer" src="" alt="Live CCTV Stream" style="width: 100%; height: auto; background-color: #000;">
-        </div>
-      </div>
-    </div>
-  </div>
+    <script>
+        // --- KONFIGURASI KONEKSI BACKEND ---
+        const API_URL = 'http://127.0.0.1:5000/api/traffic';
+        const VIDEO_FEED_URL = 'http://127.0.0.1:5000/video_feed';
 
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-  <script src="script.js"></script>
+        // --- DATA TAMBAHAN (untuk melengkapi data dari API) ---
+        // (Tidak berubah)
+        const extraCameraInfo = {
+            'cctv-simpang-tonjong': {
+                location: 'Ciamis', // Ganti sesuai wilayah
+                image: 'https://images.unsplash.com/photo-1589935447067-5531094415d1?ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&q=80&w=1470'
+            },
+            'cctv-simpang-cirahong': {
+                location: 'Bogor', // Ganti sesuai wilayah
+                image: 'https://images.unsplash.com/photo-1589935447067-5531094415d1?ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&q=80&w=1470'
+            },
+            'cctv-simpang-ramona': {
+                location: 'Ciamis', // Ganti sesuai wilayah
+                image: 'https://images.unsplash.com/photo-1589935447067-5531094415d1?ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&q=80&w=1470'
+            },
+        };
+
+        // --- Konfigurasi Tampilan ---
+        // (Tidak berubah)
+        const densityConfig = {
+            'low': { label: 'Lancar', color: '#22c55e', bgColor: 'bg-green-500' },
+            'medium': { label: 'Sedang', color: '#eab308', bgColor: 'bg-yellow-500' },
+            'high': { label: 'Padat', color: '#f97316', bgColor: 'bg-orange-500' },
+            'very-high': { label: 'Macet', color: '#ef4444', bgColor: 'bg-red-500' }
+        };
+
+        // --- Mapping status dari backend (app.py) ke densityConfig ---
+        // (Tidak berubah)
+        const statusToDensity = {
+            'lancar': 'low',
+            'padat': 'high',        
+            'macet': 'very-high',   
+            'menunggu data': 'medium',
+            'Stream Error': 'medium',
+            'Model Gagal': 'medium'
+        };
+
+        // --- Variabel Global ---
+        let allCameraData = []; 
+        let selectedRegion = 'all';
+        let selectedCamera = null;
+        let chart = null;
+
+        // --- PERUBAHAN 4: Tambahkan variabel global untuk Peta Leaflet ---
+        let map = null;
+        let mapMarkers = []; // Array untuk menyimpan marker Leaflet
+
+        // --- Elemen Modal ---
+        // (Tidak berubah)
+        let cctvModal = null;
+        let cctvStreamViewer = null;
+        let closeModalBtn = null;
+        let modalTitle = null;
+
+        // --- Inisialisasi ---
+        document.addEventListener('DOMContentLoaded', function() {
+            // Inisialisasi Elemen Modal
+            cctvModal = document.getElementById('cctvModal');
+            cctvStreamViewer = document.getElementById('cctvStreamViewer');
+            closeModalBtn = document.getElementById('closeModalBtn');
+            modalTitle = document.getElementById('cctvModalLabel');
+
+            // Event Listener Modal
+            closeModalBtn.addEventListener('click', closeCctvPopup);
+            cctvModal.addEventListener('click', (e) => {
+                if (e.target === cctvModal) { 
+                    closeCctvPopup();
+                }
+            });
+
+            // Inisialisasi Chart (kosong)
+            initChart();
+
+            // --- PERUBAHAN 5: Panggil inisialisasi Peta ---
+            initMap(); 
+            
+            // Ambil data pertama kali
+            refreshData();
+            
+            // Auto refresh setiap 5 detik
+            setInterval(refreshData, 5000);
+
+            // Event Listener Filter Wilayah
+            document.getElementById('regionFilter').addEventListener('change', function(e) {
+                selectedRegion = e.target.value;
+                updateStats();
+                renderCameras();
+                renderMap(); // Render ulang peta (marker)
+            });
+        });
+
+        // --- Fungsi Kontrol Modal ---
+        // (Tidak berubah)
+        function showCctvPopup(camera) {
+            if (!camera || !camera.id) {
+                console.error("Invalid camera data for popup:", camera);
+                return;
+            }
+            modalTitle.textContent = `Live Stream (Deteksi Aktif) - ${camera.name}`;
+            const processedStreamUrl = `${VIDEO_FEED_URL}/${camera.id}`;
+            cctvStreamViewer.src = processedStreamUrl; 
+            cctvModal.classList.remove('hidden');
+            document.body.style.overflow = 'hidden'; 
+        }
+
+        function closeCctvPopup() {
+            cctvStreamViewer.src = ""; 
+            cctvModal.classList.add('hidden');
+            document.body.style.overflow = 'auto'; 
+        }
+
+        // --- Fungsi Utama Pengambilan Data ---
+        // (Tidak berubah)
+        async function refreshData() {
+            let data;
+            try {
+                const response = await fetch(API_URL);
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                data = await response.json();
+            } catch (e) {
+                console.error("Gagal mengambil data dari backend:", e);
+                document.getElementById('lastUpdate').textContent = 'Gagal terhubung ke server...';
+                return;
+            }
+
+            allCameraData = data.points.map(point => {
+                const extraInfo = extraCameraInfo[point.id] || { 
+                    location: 'Tidak Diketahui', 
+                    image: 'https://images.unsplash.com/photo-1581432167881-8mv71e33d3b7?w=800&h=450&fit=crop' 
+                };
+                
+                return {
+                    id: point.id,
+                    name: point.name,
+                    lat: point.lat,
+                    lng: point.lng,
+                    vehicleCount: point.vehicle_count,
+                    status: point.status,
+                    density: statusToDensity[point.status] || 'medium',
+                    location: extraInfo.location,
+                    image: extraInfo.image
+                };
+            });
+
+            updateFilters(allCameraData);
+            updateStats();
+            renderMap();
+            renderCameras();
+            updateTime();
+            updateChartData(allCameraData); 
+        }
+
+        // --- Fungsi Render UI ---
+
+        // (Tidak berubah)
+        function updateFilters(cameras) {
+            const regionFilter = document.getElementById('regionFilter');
+            const currentVal = regionFilter.value;
+            const locations = [...new Set(cameras.map(c => c.location))];
+
+            while (regionFilter.options.length > 1) {
+                regionFilter.remove(1);
+            }
+
+            locations.forEach(loc => {
+                const option = document.createElement('option');
+                option.value = loc;
+                option.textContent = loc;
+                regionFilter.appendChild(option);
+            });
+
+            if (locations.includes(currentVal)) {
+                regionFilter.value = currentVal;
+            } else {
+                regionFilter.value = 'all'; 
+            }
+
+            if (locations.length > 0) {
+                document.getElementById('mapAreaLabel').textContent = locations.join(', ');
+            } else {
+                document.getElementById('mapAreaLabel').textContent = 'Tidak ada data';
+            }
+        }
+
+        // (Tidak berubah)
+        function getFilteredCameras() {
+            if (selectedRegion === 'all') return allCameraData;
+            return allCameraData.filter(cam => cam.location === selectedRegion);
+        }
+
+        // (Tidak berubah)
+        function updateStats() {
+            const cameras = getFilteredCameras();
+            const totalVehicles = cameras.reduce((sum, cam) => sum + cam.vehicleCount, 0);
+            const congestionPoints = cameras.filter(cam => cam.density === 'very-high' || cam.density === 'high').length;
+
+            document.getElementById('totalVehicles').textContent = totalVehicles.toLocaleString();
+            document.getElementById('monitoringPoints').textContent = cameras.length;
+            document.getElementById('congestionPoints').textContent = congestionPoints;
+
+            const allLocations = [...new Set(allCameraData.map(c => c.location))];
+            const locationsEl = document.getElementById('availableLocations');
+            if (allLocations.length > 0) {
+                locationsEl.textContent = allLocations.join(', ');
+            } else {
+                locationsEl.textContent = 'Tidak ada wilayah';
+            }
+        }
+
+        // --- PERUBAHAN 6: Fungsi `initMap` baru ---
+        function initMap() {
+            // Tentukan koordinat tengah default (misal: Jakarta)
+            // Ganti [-6.2088, 106.8456] dengan Lintang/Bujur area Anda
+            map = L.map('trafficMap').setView([-6.2088, 106.8456], 10);
+
+            // Tambahkan tile layer OpenStreetMap
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+            }).addTo(map);
+        }
+
+        // --- PERUBAHAN 7: Fungsi `renderMap` ditulis ulang untuk Leaflet ---
+        function renderMap() {
+            const cameras = getFilteredCameras();
+            const legend = document.getElementById('locationLegend');
+            legend.innerHTML = ''; // Selalu kosongkan legenda
+
+            // Hapus marker lama dari peta
+            mapMarkers.forEach(marker => marker.remove());
+            mapMarkers = [];
+
+            if (cameras.length === 0) {
+                // Tampilkan pesan di legenda jika tidak ada data
+                legend.innerHTML = '<p class="text-gray-600 col-span-full">Tidak ada data titik pemantauan untuk wilayah ini.</p>';
+                return;
+            }
+
+            const latLngs = []; // Kumpulkan Lintang/Bujur untuk atur view peta
+
+            // Render Marker di Peta dan item di Legenda
+            cameras.forEach(camera => {
+                const config = densityConfig[camera.density];
+                const pos = [camera.lat, camera.lng];
+                latLngs.push(pos);
+
+                // --- 1. Buat Marker Peta (Leaflet) ---
+                
+                const isCongested = (camera.density === 'high' || camera.density === 'very-high');
+                
+                // HTML untuk Ikon Kustom
+                // Terdiri dari 2 bagian: lingkaran luar (pulse) dan lingkaran dalam (inti)
+                const pulseHtml = isCongested ? `<div class="animate-pulse" style="background-color: ${config.color}; opacity: 0.3; width: 32px; height: 32px; border-radius: 50%; position: absolute; top: -8px; left: -8px;"></div>` : '';
+                const coreHtml = `<div style="background-color: ${config.color}; width: 16px; height: 16px; border-radius: 50%; border: 2px solid white; box-shadow: 0 1px 3px rgba(0,0,0,0.5); position: relative; z-index: 1;"></div>`;
+                
+                const iconHtml = `<div style="position: relative; width: 16px; height: 16px;">${pulseHtml}${coreHtml}</div>`;
+
+                const customIcon = L.divIcon({
+                    html: iconHtml,
+                    className: 'custom-leaflet-icon', // Class untuk hover (jika ditambahkan di CSS)
+                    iconSize: [16, 16], // Ukuran inti
+                    iconAnchor: [8, 8]  // Anchor di tengah
+                });
+
+                const marker = L.marker(pos, { icon: customIcon })
+                    .addTo(map)
+                    .bindTooltip(`${camera.name}<br>Status: ${config.label}<br>Kendaraan: ${camera.vehicleCount}<br>(Klik untuk lihat video)`);
+                
+                // Tambah event
+                marker.on('click', () => showCctvPopup(camera));
+                marker.on('mouseover', () => {
+                    selectedCamera = camera.id;
+                    updateLegendHighlight();
+                });
+                marker.on('mouseout', () => {
+                    selectedCamera = null;
+                    updateLegendHighlight();
+                });
+
+                mapMarkers.push(marker);
+
+                // --- 2. Buat Item Legenda (Sama seperti sebelumnya) ---
+                const div = document.createElement('div');
+                div.className = 'legend-item flex items-start gap-2 p-2 rounded-lg cursor-pointer transition-colors';
+                div.dataset.cameraId = camera.id;
+                div.innerHTML = `
+                    <div class="w-3 h-3 rounded-full ${config.bgColor} mt-1 flex-shrink-0"></div>
+                    <div class="flex-1 min-w-0">
+                        <p class="text-sm font-medium text-gray-800 truncate">${camera.name}</p>
+                        <p class="text-xs text-gray-600">${camera.location}</p>
+                    </div>
+                `;
+                div.addEventListener('click', () => showCctvPopup(camera)); // Tambah event klik
+                div.addEventListener('mouseenter', () => {
+                    selectedCamera = camera.id;
+                    updateLegendHighlight();
+                    marker.openTooltip(); // Buka tooltip di peta saat hover legenda
+                });
+                div.addEventListener('mouseleave', () => {
+                    selectedCamera = null;
+                    updateLegendHighlight();
+                    marker.closeTooltip(); // Tutup tooltip
+                });
+                legend.appendChild(div);
+            });
+
+            // --- 3. Sesuaikan Tampilan Peta ---
+            if (latLngs.length > 0) {
+                const bounds = L.latLngBounds(latLngs);
+                map.fitBounds(bounds, { padding: [50, 50] }); // Atur zoom agar semua marker pas
+            }
+        }
+
+
+        // (Tidak berubah)
+        function updateLegendHighlight() {
+            document.querySelectorAll('.legend-item').forEach(item => {
+                if (item.dataset.cameraId === selectedCamera) {
+                    item.style.backgroundColor = '#f5f5f5';
+                } else {
+                    item.style.backgroundColor = 'transparent';
+                }
+            });
+        }
+
+        // (Tidak berubah)
+        function renderCameras() {
+            const cameras = getFilteredCameras();
+            const grid = document.getElementById('cameraGrid');
+            grid.innerHTML = '';
+
+            if (cameras.length === 0) {
+                grid.innerHTML = '<p class="text-gray-600">Tidak ada kamera untuk wilayah ini.</p>';
+                return;
+            }
+
+            cameras.forEach(camera => {
+                const config = densityConfig[camera.density];
+                const div = document.createElement('div');
+                div.className = 'card camera-card overflow-hidden';
+                div.innerHTML = `
+                    <img src="${camera.image}" alt="${camera.name}" class="w-full h-48 object-cover">
+                    <div class="p-4">
+                        <div class="flex items-start justify-between mb-2">
+                            <h3 class="font-bold" style="color: #0A2647;">${camera.name}</h3>
+                            <span class="badge ${config.bgColor} text-white">${config.label}</span>
+                        </div>
+                        <div class="flex items-center gap-2 text-sm text-gray-600 mb-2">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                            </svg>
+                            <span>${camera.location}</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <svg class="w-4 h-4" style="color: #2C5F7F;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19V6l12-3v13M9 6L3 3v13l6 3m0-13l12-3m-12 3l6 3m6-3v13" />
+                            </svg>
+                            <span class="text-sm font-medium" style="color: #0A2647;">${camera.vehicleCount} kendaraan terdeteksi</span>
+                        </div>
+                    </div>
+                `;
+                div.addEventListener('click', () => showCctvPopup(camera));
+                grid.appendChild(div);
+            });
+        }
+
+        // (Tidak berubah)
+        function initChart() {
+            const ctx = document.getElementById('trafficChart').getContext('2d');
+            chart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: [], 
+                    datasets: [{
+                        label: 'Rata-rata Kendaraan',
+                        data: [], 
+                        borderColor: '#0A2647',
+                        backgroundColor: 'rgba(10, 38, 71, 0.1)',
+                        borderWidth: 3,
+                        tension: 0.4,
+                        fill: true,
+                        yAxisID: 'y'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: {
+                        mode: 'index',
+                        intersect: false,
+                    },
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'bottom'
+                        },
+                        tooltip: {
+                            backgroundColor: 'white',
+                            titleColor: '#0A2647',
+                            bodyColor: '#2C5F7F',
+                            borderColor: '#E8E8E8',
+                            borderWidth: 1
+                        }
+                    },
+                    scales: {
+                        x: {
+                            grid: {
+                                color: '#E8E8E8'
+                            },
+                            ticks: {
+                                color: '#2C5F7F'
+                            }
+                        },
+                        y: {
+                            position: 'left',
+                            min: 0,
+                            ticks: {
+                                stepSize: 20,
+                                color: '#0A2647',
+                            },
+                            grid: {
+                                color: '#E8E8E8'
+                            },
+                            title: {
+                                display: true,
+                                text: 'Rata-rata Jumlah Kendaraan',
+                                color: '#0A2647'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // (Tidak berubah)
+        function updateChartData(cameras) {
+            if (!chart) return;
+
+            const now = new Date();
+            const timeString = now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            
+            const totalVehicles = cameras.reduce((sum, cam) => sum + cam.vehicleCount, 0);
+            const avgVehicles = cameras.length > 0 ? (totalVehicles / cameras.length) : 0;
+            
+            chart.data.labels.push(timeString);
+            chart.data.datasets[0].data.push(avgVehicles);
+            
+            const maxDataPoints = 30;
+            if (chart.data.labels.length > maxDataPoints) {
+                chart.data.labels.shift();
+                chart.data.datasets[0].data.shift();
+            }
+            
+            chart.update(); 
+        }
+
+        // (Tidak berubah)
+        function updateTime() {
+            const now = new Date();
+            const timeString = now.toLocaleTimeString('id-ID');
+            document.getElementById('lastUpdate').textContent = `Terakhir diperbarui: ${timeString}`;
+            document.getElementById('cameraUpdateTime').textContent = `Terakhir diperbarui: ${timeString}`;
+        }
+    </script>
 </body>
 </html>
